@@ -1,3 +1,5 @@
+
+//eslint-disable-next-line
 import React from 'react'
 import './App.css'
 const App = () => {
