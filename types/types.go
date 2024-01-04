@@ -58,7 +58,26 @@ type Student struct {
 }
 
 type Subject struct {
-	SubName  string `bson:"SubName" validate:"required"`
-	subCode  string `bson:"SubCode" validate:"required"`
-	sessions string `bson:"Sessions validate:required"`
+	SubName   string             `bson:"SubName" validate:"required"`
+	subCode   string             `bson:"SubCode" validate:"required"`
+	sessions  string             `bson:"Sessions" validate:"required"`
+	ClassName string             `bson:"ClassName" validate:"required"`
+	School    primitive.ObjectID `bson:"school" validate:"required"`
+	Teacher   primitive.ObjectID `bson:"teacher" validate:"required"`
+}
+
+type TeacherAttendance struct {
+	date         time.Time `bson:"date" validate:"required"`
+	presentCount string    `bson:"presentCount"`
+	absentCount  string
+}
+
+type Teacher struct {
+	name         string             `bson:"name" validate:"required"`
+	email        string             `bson:"email" validate:"required"`
+	password     string             `bson:"password" validate:"required"`
+	role         string             `bson:"role" validate:"required"`
+	school       string             `bson:"school" validate:"required"`
+	teachSubject string             `bson:"teachSubject" validate:"required"`
+	teachClass   primitive.ObjectID `bson:"teachClass" validate:"required"`
 }
