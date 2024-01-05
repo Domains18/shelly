@@ -23,9 +23,5 @@ func main() {
 	if port == "" {
 		port = "5000"
 	}
-	fmt.Println("server is running on port: " + port)
-	err := http.ListenAndServe(":"+port, nil)
-	if err != nil {
-		return
-	}
+	async
 }

@@ -73,11 +73,12 @@ type TeacherAttendance struct {
 }
 
 type Teacher struct {
-	name         string             `bson:"name" validate:"required"`
-	email        string             `bson:"email" validate:"required"`
-	password     string             `bson:"password" validate:"required"`
-	role         string             `bson:"role" validate:"required"`
-	school       string             `bson:"school" validate:"required"`
-	teachSubject string             `bson:"teachSubject" validate:"required"`
-	teachClass   primitive.ObjectID `bson:"teachClass" validate:"required"`
+	name         string              `bson:"name" validate:"required"`
+	email        string              `bson:"email" validate:"required"`
+	password     string              `bson:"password" validate:"required"`
+	role         string              `bson:"role" validate:"required"`
+	school       string              `bson:"school" validate:"required"`
+	teachSubject string              `bson:"teachSubject" validate:"required"`
+	teachClass   primitive.ObjectID  `bson:"teachClass" validate:"required"`
+	attendance   []TeacherAttendance `bson:"attendance,omitempty"`
 }
