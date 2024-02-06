@@ -1,31 +1,34 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"os"
+	"github.com/Domains18/SchoolIt/controllers"
+	"github.com/Domains18/SchoolIt/database"
+	"github.com/Domains18/SchoolIt/middlewares"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		if req.Header.Get("Accept") == "text/html" {
-			http.ServeFile(w, req, "./public/index.html")
-		} else if req.Header.Get("Accept") == "application/json" {
-			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"message": "This is the Api"}`))
-		} else {
-			w.Write([]byte("This is the API"))
+	database.Connect("root:root@tcp(localhost:3306)/jwt_demo?parseTime=true")
+	database.Migrate()
+	//initialize router
+	router := initRouter()
+	err :=router.Run(":8000")
+	if err !=nil {
+		panic("error")
+	}
+}
 
+
+func initRouter() *gin.Engine {
+	router := gin.Default()
+	api := router.Group("/api")
+	{
+		api.POST("/token", controllers.GenerateToken)
+		api.POST("/user/register", controllers.RegisterUser)
+		secured := api.Group("/secured").Use(middlewares.Auth())
+		{
+			secured.GET("/ping", controllers.Ping)
 		}
-	})
-
-	port := os.Getenv("PORT ")
-	if port == "" {
-		port = "5000"
 	}
-	fmt.Println("server is running on port: " + port)
-	err := http.ListenAndServe(":"+port, nil)
-	if err != nil {
-		return
-	}
+	return router
 }
