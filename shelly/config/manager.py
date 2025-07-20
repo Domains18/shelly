@@ -2,6 +2,10 @@
 
 import os
 import yaml
+import json
+from pathlib import Path
+from typing import Optional, Dict, Any, List
+from .settings import DEFAULT_CONFIG, SUPPORTED_EDITORS
 from .settings import DEFAULT_SETTINGS
 
 class ConfigManager:

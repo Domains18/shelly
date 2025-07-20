@@ -35,7 +35,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "shelly=shelly.main:main,
+            "shelly=shelly.main:main",
         ],
     },
     include_package_data=True,
