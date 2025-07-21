@@ -1,5 +1,0 @@
-#!/bin/bash
-# Shelly CLI wrapper script for development
-# This allows running 'shelly' command during development
-
-python3 -m shelly "$@"
