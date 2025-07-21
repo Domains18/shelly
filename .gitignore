@@ -2,3 +2,5 @@
 .venv
 Shelly_CLI*
 __pycache__
+
+shelly_cli*
