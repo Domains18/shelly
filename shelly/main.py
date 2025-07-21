@@ -5,7 +5,7 @@ A tool for organizing and managing cloned repositories
 """
 
 import click
-from .commands import clone, config, list_cmd, open_cmd
+from .commands import clone, config, list_cmd, open_cmd, roadmap
 
 
 @click.group(invoke_without_command=True)
@@ -47,6 +47,7 @@ main.add_command(clone, name='clone')
 main.add_command(config, name='config')
 main.add_command(list_cmd, name='list')
 main.add_command(open_cmd, name='open')
+main.add_command(roadmap, name='roadmap')
 
 # Create aliases for the shorthand options
 clone_cmd = clone
