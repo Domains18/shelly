@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from .settings import DEFAULT_CONFIG, SUPPORTED_EDITORS
-from .settings import DEFAULT_SETTINGS
+from .settings import DEFAULT_CONFIG as DEFAULT_SETTINGS, SUPPORTED_EDITORS
 
 class ConfigManager:
     def __init__(self):
@@ -18,7 +18,7 @@ class ConfigManager:
         self.config_dir.mkdir(exist_ok=True)
 
         self.config = self._load_config()
-        self.cache = self._load_cache()
+        self.cache = self.load_cache()
 
     def _load_config(self):
         """Load configuration from file or create default."""

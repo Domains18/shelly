@@ -1,1 +1,4 @@
 .vscode
+.venv
+Shelly_CLI*
+__pycache__
