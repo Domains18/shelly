@@ -56,7 +56,6 @@ setup(
         "Source": "https://github.com/Domains18/shelly",
         "Documentation": "https://github.com/Domains18/shelly/wiki",
     },
-)
     include_package_data=True,
     zip_safe=False
 )
