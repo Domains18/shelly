@@ -4,110 +4,53 @@ Shelly CLI - Main entry point
 A tool for organizing and managing cloned repositories
 """
 
-import sys
-import argparse
-from typing import Optional
-
-from .config.manager import ConfigManager
-from .commands import (
-    CloneCommand,
-    ConfigCommand,
-    ListCommand,
-    OpenCommand
-)
-from .ui.display import print_error, print_info
+import click
+from .commands import clone, config, list_cmd, open_cmd
 
 
-class ShellyCLI:
-    """Main CLI application orchestrator"""
+@click.group(invoke_without_command=True)
+@click.option('--clone', help='Clone a repository (shorthand for clone command)')
+@click.option('--list', 'list_repos', is_flag=True, help='List repositories (shorthand for list command)')
+@click.option('--config-setup', is_flag=True, help='Setup configuration (shorthand for config --setup)')
+@click.version_option(version='0.1.0', prog_name='shelly')
+@click.pass_context
+def main(ctx, clone, list_repos, config_setup):
+    """🐚 Shelly CLI - Organize your cloned repositories
     
-    def __init__(self):
-        self.config_manager = ConfigManager()
-        
-        # Initialize commands with config manager
-        self.commands = {
-            'clone': CloneCommand(self.config_manager),
-            'config': ConfigCommand(self.config_manager),
-            'list': ListCommand(self.config_manager),
-            'open': OpenCommand(self.config_manager),
-        }
+    Examples:
+      shelly clone https://github.com/user/repo    # Clone a repository
+      shelly --clone https://github.com/user/repo  # Alternative syntax
+      shelly list                                  # List repositories
+      shelly config --setup                       # Interactive setup
+      shelly open repo-name                       # Open repository
+    """
+    # Handle shorthand options
+    if clone:
+        ctx.invoke(clone_cmd, url=clone)
+        return
     
-    def create_parser(self) -> argparse.ArgumentParser:
-        """Create and configure the argument parser"""
-        parser = argparse.ArgumentParser(
-            prog='shelly',
-            description='🐚 Shelly CLI - Organize your cloned repositories',
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-            epilog="""
-Examples:
-  shelly clone                    # Clone a repository interactively
-  shelly clone https://github.com/facebook/react
-  shelly list                     # List all cloned repositories
-  shelly list --recent           # Show recently cloned repositories
-  shelly config                  # Configure Shelly CLI
-  shelly open react              # Open repository in preferred editor
-  
-For more help on a command, use: shelly <command> --help
-            """.strip()
-        )
+    if list_repos:
+        ctx.invoke(list_cmd)
+        return
         
-        parser.add_argument(
-            '--version',
-            action='version',
-            version='Shelly CLI v0.1.0'
-        )
-        
-        # Create subparsers for commands
-        subparsers = parser.add_subparsers(
-            dest='command',
-            help='Available commands',
-            metavar='<command>'
-        )
-        
-        # Let each command register its own arguments
-        for command_name, command_instance in self.commands.items():
-            command_instance.register_arguments(subparsers)
-        
-        return parser
+    if config_setup:
+        ctx.invoke(config_cmd, setup=True)
+        return
     
-    def run(self, args: Optional[list] = None) -> int:
-        """Run the CLI application"""
-        parser = self.create_parser()
-        
-        # Parse arguments
-        if args is None:
-            args = sys.argv[1:]
-        
-        # Show help if no arguments provided
-        if not args:
-            parser.print_help()
-            return 0
-        
-        parsed_args = parser.parse_args(args)
-        
-        # Execute command
-        try:
-            if parsed_args.command in self.commands:
-                return self.commands[parsed_args.command].execute(parsed_args)
-            else:
-                parser.print_help()
-                return 1
-                
-        except KeyboardInterrupt:
-            print_info("\n🛑 Cancelled by user")
-            return 130  # Standard exit code for Ctrl+C
-        except Exception as e:
-            print_error(f"Unexpected error: {str(e)}")
-            if '--debug' in args:
-                import traceback
-                traceback.print_exc()
-            return 1
+    # If no command or option specified, show help
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
 
 
-def main():
-    """Entry point for the shelly command"""
-    cli = ShellyCLI()
-    sys.exit(cli.run())
+# Register commands with their original names
+main.add_command(clone, name='clone')
+main.add_command(config, name='config')
+main.add_command(list_cmd, name='list')
+main.add_command(open_cmd, name='open')
+
+# Create aliases for the shorthand options
+clone_cmd = clone
+config_cmd = config
 
 
 if __name__ == '__main__':

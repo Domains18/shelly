@@ -1,208 +1,242 @@
 """
 Clone command implementation
-Handles cloning repositories with editor integration
+Handles cloning repositories with category organization
 """
 
+import click
+import os
+import re
 from pathlib import Path
-from typing import Optional
+from urllib.parse import urlparse
 
 from .base import BaseCommand
-from ..core.repository import RepositoryManager
-from ..core.editor import EditorManager
-from ..ui.prompts import confirm_prompt, text_prompt, choice_prompt
 from ..ui.display import print_success, print_error, print_info, print_warning
 
 
-class CloneCommand(BaseCommand):
-    """Handle repository cloning with editor integration"""
+@click.command()
+@click.argument('url', required=True)
+@click.option('--category', '-c', help='Category to organize the repository under')
+@click.option('--path', '-p', help='Custom path to clone the repository')
+@click.option('--shallow', is_flag=True, help='Perform a shallow clone')
+@click.option('--no-open', is_flag=True, help='Don\'t open in editor after cloning')
+def command(url, category, path, shallow, no_open):
+    """Clone a Git repository and organize it by category"""
     
-    def __init__(self, config_manager):
-        super().__init__(config_manager)
-        self.repo_manager = RepositoryManager(config_manager)
-        self.editor_manager = EditorManager(config_manager)
+    # Initialize base command for config access
+    base_cmd = BaseCommand()
+    config = base_cmd.config
     
-    def register_arguments(self, subparsers):
-        """Register command arguments"""
-        parser = subparsers.add_parser(
-            'clone',
-            help='Clone a repository',
-            description='Clone a Git repository and optionally open it in an editor'
-        )
+    try:
+        # Parse repository information from URL
+        repo_info = parse_git_url(url)
+        if not repo_info:
+            print_error("Invalid repository URL")
+            return 1
+            
+        print_info(f"📦 Repository: {repo_info['name']} ({repo_info['platform']})")
         
-        parser.add_argument(
-            'url',
-            nargs='?',
-            help='Repository URL to clone'
-        )
+        # Determine category
+        if not category:
+            category = prompt_for_category(config)
         
-        parser.add_argument(
-            '--path',
-            help='Custom path to clone the repository'
-        )
+        # Determine destination path
+        if path:
+            destination = Path(path).expanduser().resolve()
+        else:
+            base_dir = Path(config.config.get('base_dir', '~/Code')).expanduser()
+            destination = base_dir / category / repo_info['name']
         
-        parser.add_argument(
-            '--no-editor',
-            action='store_true',
-            help='Skip opening the repository in an editor'
-        )
+        # Create destination directory
+        destination.mkdir(parents=True, exist_ok=True)
         
-        parser.add_argument(
-            '--editor',
-            help='Specify editor to use (overrides preference)'
-        )
+        # Check if destination already exists and has content
+        if destination.exists() and any(destination.iterdir()):
+            if not click.confirm(f"Directory {destination} already exists and is not empty. Continue?"):
+                print_info("Cancelled")
+                return 0
         
-        parser.add_argument(
-            '--shallow',
-            action='store_true',
-            help='Perform a shallow clone (faster, no history)'
-        )
+        # Build git clone command
+        clone_cmd = ['git', 'clone']
+        if shallow:
+            clone_cmd.extend(['--depth', '1'])
+        clone_cmd.extend([url, str(destination)])
+        
+        # Clone the repository
+        print_info(f"🚀 Cloning to: {destination}")
+        
+        import subprocess
+        result = subprocess.run(clone_cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print_error(f"Failed to clone repository: {result.stderr}")
+            return 1
+        
+        print_success(f"✅ Successfully cloned {repo_info['name']} to {destination}")
+        
+        # Add category to config if it's new
+        categories = config.config.get('categories', [])
+        if category not in categories:
+            categories.append(category)
+            config.config['categories'] = sorted(categories)
+            config.save_config()
+        
+        # Cache the cloned repository
+        cache_repository(config, repo_info, str(destination), category)
+        
+        # Open in editor if requested
+        if not no_open:
+            open_in_editor(config, destination)
+        
+        return 0
+        
+    except Exception as e:
+        print_error(f"An error occurred: {str(e)}")
+        return 1
+
+
+def parse_git_url(url):
+    """Parse a Git URL and extract repository information"""
+    # Support various Git URL formats
+    patterns = [
+        r'https://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$',
+        r'git@github\.com:([^/]+)/([^/]+?)(?:\.git)?$',
+        r'https://gitlab\.com/([^/]+)/([^/]+?)(?:\.git)?/?$',
+        r'git@gitlab\.com:([^/]+)/([^/]+?)(?:\.git)?$',
+        r'https://bitbucket\.org/([^/]+)/([^/]+?)(?:\.git)?/?$',
+        r'git@bitbucket\.org:([^/]+)/([^/]+?)(?:\.git)?$',
+    ]
     
-    def execute(self, args) -> int:
-        """Execute the clone command"""
-        # Check if basic configuration is complete
-        if not self.config.is_configured():
-            print_warning("Shelly CLI is not configured yet.")
-            if confirm_prompt("Would you like to set it up now?"):
-                from .config import ConfigCommand
-                config_cmd = ConfigCommand(self.config)
-                config_args = type('Args', (), {'reset': False})()
-                if config_cmd.execute(config_args) != 0:
-                    return 1
+    for pattern in patterns:
+        match = re.match(pattern, url)
+        if match:
+            owner, name = match.groups()
+            
+            # Determine platform
+            if 'github.com' in url:
+                platform = 'github'
+            elif 'gitlab.com' in url:
+                platform = 'gitlab'
+            elif 'bitbucket.org' in url:
+                platform = 'bitbucket'
             else:
-                print_error("Configuration required. Run 'shelly config' to set up.")
-                return 1
+                platform = 'unknown'
+            
+            return {
+                'owner': owner,
+                'name': name,
+                'platform': platform,
+                'full_name': f"{owner}/{name}",
+                'url': url
+            }
+    
+    return None
+
+
+def prompt_for_category(config):
+    """Prompt user to select or create a category"""
+    categories = config.config.get('categories', [
+        'work', 'personal', 'learning', 'opensource', 'misc'
+    ])
+    
+    print_info("Available categories:")
+    for i, cat in enumerate(categories, 1):
+        click.echo(f"  {i}. {cat}")
+    
+    click.echo(f"  {len(categories) + 1}. Create new category")
+    
+    while True:
+        choice = click.prompt("Select category (number or name)", type=str)
         
-        # Get repository URL
-        repo_url = args.url
-        if not repo_url:
-            repo_url = text_prompt("Enter repository URL")
-            if not repo_url:
-                print_error("Repository URL is required")
-                return 1
-        
+        # Check if it's a number
         try:
-            # Parse repository information
-            repo_info = self.repo_manager.parse_git_url(repo_url)
-            print_info(f"📦 Repository: {repo_info['full_name']} ({repo_info['platform']})")
-            
-            # Determine destination path
-            if args.path:
-                destination = Path(args.path).expanduser().resolve()
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(categories):
+                return categories[choice_num - 1]
+            elif choice_num == len(categories) + 1:
+                new_category = click.prompt("Enter new category name").strip().lower()
+                if new_category:
+                    return new_category
             else:
-                suggested_path = self.repo_manager.suggest_directory_structure(repo_info)
-                print_info(f"💡 Suggested location: {suggested_path}")
-                
-                choice = choice_prompt(
-                    "Choose an option:",
-                    [
-                        ("use", "Use suggested location"),
-                        ("custom", "Specify custom path"),
-                        ("cancel", "Cancel")
-                    ],
-                    default="use"
-                )
-                
-                if choice == "cancel":
-                    print_info("Cancelled")
-                    return 0
-                elif choice == "custom":
-                    custom_path = text_prompt("Enter custom path")
-                    if not custom_path:
-                        print_error("Custom path cannot be empty")
-                        return 1
-                    destination = Path(custom_path).expanduser().resolve()
-                else:
-                    destination = suggested_path
-            
-            # Check if destination already exists
-            if destination.exists():
-                if destination.is_dir() and any(destination.iterdir()):
-                    print_warning(f"Directory {destination} already exists and is not empty")
-                    if not confirm_prompt("Continue anyway?"):
-                        print_info("Cancelled")
-                        return 0
-            
-            # Clone the repository
-            print_info(f"🚀 Cloning {repo_info['full_name']}...")
-            
-            clone_options = {}
-            if args.shallow or self.config.config.get('git_clone_depth'):
-                clone_options['depth'] = 1
-            
-            success = self.repo_manager.clone_repository(
-                repo_url, 
-                destination,
-                **clone_options
-            )
-            
-            if not success:
-                return 1
-            
-            print_success(f"Successfully cloned to: {destination}")
-            
-            # Cache the recently cloned repository
-            self.config.cache_recent_repo(repo_info, str(destination))
-            
-            # Handle editor opening
-            if not args.no_editor:
-                should_open_editor = (
-                    args.editor or
-                    self.config.get_auto_open_editor() or
-                    self._prompt_for_editor_opening()
-                )
-                
-                if should_open_editor:
-                    editor_to_use = args.editor or self._select_editor()
-                    if editor_to_use:
-                        if self.editor_manager.open_in_editor(destination, editor_to_use):
-                            print_success(f"Opened in {editor_to_use}")
-                            # Cache the editor choice for future use
-                            self.config.cache_editor_choice(editor_to_use)
-                        else:
-                            print_warning(f"Failed to open in {editor_to_use}")
-            
-            return 0
-            
-        except ValueError as e:
-            print_error(str(e))
-            return 1
-        except Exception as e:
-            print_error(f"An error occurred: {str(e)}")
-            return 1
+                print_error("Invalid choice")
+                continue
+        except ValueError:
+            # Not a number, check if it's a valid category name
+            choice = choice.strip().lower()
+            if choice in categories:
+                return choice
+            else:
+                # Create new category
+                if click.confirm(f"Create new category '{choice}'?"):
+                    return choice
+                continue
+
+
+def cache_repository(config, repo_info, path, category):
+    """Cache repository information for quick access"""
+    cache = config.cache
     
-    def _prompt_for_editor_opening(self) -> bool:
-        """Ask user if they want to open the repository in an editor"""
-        return confirm_prompt("Would you like to open the repository in an editor?")
+    if 'repositories' not in cache:
+        cache['repositories'] = []
     
-    def _select_editor(self) -> Optional[str]:
-        """Let user select an editor"""
-        # First check if there's a preferred editor
-        preferred = self.config.get_preferred_editor()
-        if preferred and self.editor_manager.is_editor_available(preferred):
-            if confirm_prompt(f"Open in {preferred}?"):
-                return preferred
+    # Remove existing entry if it exists
+    cache['repositories'] = [
+        repo for repo in cache['repositories'] 
+        if repo.get('path') != path
+    ]
+    
+    # Add new entry
+    cache['repositories'].append({
+        'name': repo_info['name'],
+        'owner': repo_info['owner'],
+        'platform': repo_info['platform'],
+        'url': repo_info['url'],
+        'path': path,
+        'category': category,
+        'cloned_at': str(__import__('datetime').datetime.now())
+    })
+    
+    config.save_cache()
+
+
+def open_in_editor(config, path):
+    """Open repository in configured editor"""
+    editor = config.config.get('preferred_editor')
+    
+    if not editor and click.confirm("Would you like to open the repository in an editor?"):
+        # Try to detect available editors
+        editors = config.config.get('supported_editors', {})
+        available = []
         
-        # Check cached editor choice
-        cached_choice = self.config.get_cached_editor_choice()
-        if cached_choice and self.editor_manager.is_editor_available(cached_choice):
-            if confirm_prompt(f"Open in {cached_choice} (last used)?"):
-                return cached_choice
+        for editor_name, editor_config in editors.items():
+            import shutil
+            if shutil.which(editor_config['command']):
+                available.append(editor_name)
         
-        # Show available editors
-        available_editors = self.editor_manager.get_available_editors()
-        if not available_editors:
-            print_warning("No supported editors found")
-            return None
-        
-        if len(available_editors) == 1:
-            editor = available_editors[0]
-            if confirm_prompt(f"Open in {editor}?"):
-                return editor
-            return None
-        
-        # Multiple editors available - let user choose
-        editor_choices = [(editor, editor) for editor in available_editors]
-        editor_choices.append(("none", "Don't open in editor"))
-        
-        choice = choice_prompt("Select an editor:", editor_choices)
-        return choice if choice != "none" else None
+        if available:
+            if len(available) == 1:
+                editor = available[0]
+            else:
+                print_info("Available editors:")
+                for i, ed in enumerate(available, 1):
+                    click.echo(f"  {i}. {ed}")
+                
+                choice = click.prompt("Select editor (number)", type=int)
+                if 1 <= choice <= len(available):
+                    editor = available[choice - 1]
+    
+    if editor:
+        editors = config.config.get('supported_editors', {})
+        if editor in editors:
+            editor_config = editors[editor]
+            command = [editor_config['command']] + editor_config.get('args', [])
+            
+            try:
+                import subprocess
+                subprocess.Popen(command, cwd=str(path))
+                print_success(f"🚀 Opened in {editor}")
+            except Exception as e:
+                print_error(f"Failed to open editor: {e}")
+
+
+# Alias for compatibility
+clone = command
