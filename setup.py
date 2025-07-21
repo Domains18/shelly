@@ -2,42 +2,61 @@
 
 from setuptools import setup, find_packages
 
-
 with open("README.md", "r", encoding='utf-8') as fh:
-    long_decription = fh.read()
+    long_description = fh.read()
 
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith('#')]
 
-
-
-
 setup(
-    name="Shelly-CLI",
+    name="shelly-cli",
     version="0.1.0",
     author="Gibson Kemboi",
     author_email="gibsonsgibson88@gmail.com",
-    description="A cli tool to make your git life just easy",
-    url="https://github.com/Domains18/shelly.git",
+    description="A powerful command-line tool for organizing and managing multiple Git repositories",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/Domains18/shelly",
     packages=find_packages(),
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: MacOS",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: Software Development :: Version Control :: Git",
+        "Topic :: System :: Systems Administration", 
+        "Topic :: Utilities",
     ],
+    keywords="git repository management cli developer-tools organization",
     python_requires=">=3.8",
     install_requires=requirements,
+    extras_require={
+        "dev": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0", 
+            "black>=23.0.0",
+            "flake8>=6.0.0",
+            "mypy>=1.0.0",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "shelly=shelly.main:main",
         ],
     },
+    project_urls={
+        "Bug Reports": "https://github.com/Domains18/shelly/issues",
+        "Source": "https://github.com/Domains18/shelly",
+        "Documentation": "https://github.com/Domains18/shelly/wiki",
+    },
+)
     include_package_data=True,
     zip_safe=False
 )
