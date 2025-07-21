@@ -15,10 +15,11 @@ A powerful command-line tool for organizing, managing, and working with multiple
 - ⚙️ **Interactive Configuration** - Easy setup wizard for preferences
 - 🚀 **Editor Integration** - Auto-open repositories in your preferred editor
 - 📊 **Repository Caching** - Fast access to repository metadata
-
-### Coming Soon
 - 📈 **Git Status Dashboard** - View status of all repositories at once
 - 🔄 **Bulk Git Operations** - Sync, pull, or check status across multiple repos
+- 🏗️ **Project Initialization** - Create new projects with opinionated structures
+
+### Coming Soon
 - 🏷️ **Project Type Detection** - Auto-detect React, Python, Rust, etc. projects
 - 🌐 **GitHub/GitLab Integration** - Repository metadata, search, and CLI tool integration
 - 🔧 **CI/CD Pipeline Awareness** - Show build status and deployment information
@@ -56,17 +57,99 @@ shelly clone https://github.com/facebook/react
 # or use shorthand
 shelly --clone https://github.com/facebook/react
 
+# Initialize a new project
+shelly init my-api --language typescript --framework nestjs --orm prisma
+# or use shorthand
+shelly --init my-project
+
 # List all repositories
 shelly list
 
 # List repositories in specific category
 shelly list --category work
 
+# Git operations across repositories
+shelly git sync --category work
+shelly status --detailed
+
 # Open a repository in your editor
 shelly open react
 
 # View configuration
 shelly config --list
+```
+
+## 🏗️ Project Initialization
+
+Shelly can create new projects with opinionated directory structures and configurations for various languages and frameworks.
+
+### Supported Languages & Frameworks
+
+| Language | Frameworks | ORMs/Databases |
+|----------|------------|----------------|
+| **TypeScript** | NestJS, Express, Fastify, Koa | Prisma, TypeORM, Sequelize, Mongoose, Drizzle |
+| **JavaScript** | Express, Fastify, Koa, React, Vue, Svelte | Prisma, Sequelize, Mongoose, Knex |
+| **Python** | FastAPI, Django, Flask, Quart | SQLAlchemy, Django ORM, Tortoise ORM, Peewee |
+| **Go** | Gin, Echo, Fiber, Chi | GORM, Ent, SQLX |
+| **Rust** | Axum, Warp, Actix-web, Rocket | Diesel, SQLX, Sea-ORM |
+| **Java** | Spring Boot, Quarkus, Micronaut | JPA, Hibernate, MyBatis |
+
+### Project Types
+- **API** - REST API with controllers, services, and models
+- **Microservice** - Microservice with event handling and DTOs
+- **Monolith** - Monolithic application structure
+- **GraphQL** - GraphQL API setup
+- **CLI** - Command line tool structure
+- **Library** - Library/package template
+- **Web App** - Full-stack web application
+
+### Examples
+
+```bash
+# Interactive mode
+shelly init my-project
+
+# TypeScript NestJS API with Prisma
+shelly init backend-api --language typescript --framework nestjs --orm prisma --type api
+
+# Go microservice with Gin and GORM
+shelly init user-service --language go --framework gin --orm gorm --type microservice
+
+# Python FastAPI with SQLAlchemy
+shelly init data-api --language python --framework fastapi --orm sqlalchemy --type api
+
+# Shorthand syntax
+shelly --init my-new-project
+```
+
+### What Gets Created
+
+For a **TypeScript NestJS API**, Shelly creates:
+
+```
+my-api/
+├── src/
+│   ├── modules/         # Feature modules
+│   ├── common/          # Shared utilities
+│   │   ├── decorators/
+│   │   ├── filters/
+│   │   ├── guards/
+│   │   ├── interceptors/
+│   │   └── pipes/
+│   ├── config/          # Configuration
+│   ├── controllers/     # API controllers
+│   ├── services/        # Business logic
+│   ├── entities/        # Database entities
+│   └── repositories/    # Data access layer
+├── test/                # Test files
+│   ├── unit/
+│   ├── integration/
+│   └── e2e/
+├── prisma/              # Database schema (if Prisma selected)
+├── package.json         # Dependencies and scripts
+├── tsconfig.json        # TypeScript configuration
+├── .gitignore           # Git ignore rules
+└── README.md            # Project documentation
 ```
 
 ## 📋 Commands
@@ -76,9 +159,12 @@ shelly config --list
 | Command | Description | Example |
 |---------|-------------|---------|
 | `clone <url>` | Clone repository with category selection | `shelly clone https://github.com/user/repo` |
+| `init <name>` | Initialize new project with opinionated structure | `shelly init my-api --language typescript --framework nestjs` |
 | `list` | List all managed repositories | `shelly list --category work` |
 | `open <repo>` | Open repository in preferred editor | `shelly open my-project` |
 | `config` | Manage configuration settings | `shelly config --setup` |
+| `status` | Show git status across repositories | `shelly status --detailed` |
+| `git sync` | Synchronize repositories with remotes | `shelly git sync --category work` |
 | `roadmap` | View development roadmap | `shelly roadmap --next` |
 
 ### Shorthand Options
@@ -86,7 +172,9 @@ shelly config --list
 | Option | Equivalent Command | Description |
 |--------|-------------------|-------------|
 | `--clone <url>` | `clone <url>` | Quick clone syntax |
+| `--init <name>` | `init <name>` | Quick project initialization |
 | `--list` | `list` | Quick list repositories |
+| `--status` | `status` | Quick status check |
 | `--config-setup` | `config --setup` | Quick setup configuration |
 
 ## 🏗️ Configuration
